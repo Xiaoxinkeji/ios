@@ -58,6 +58,7 @@ jobs:
       - name: Build archive
         working-directory: OpenClaw
         run: |
+          mkdir -p $GITHUB_WORKSPACE/build
           xcodebuild archive \
             -project OpenClaw.xcodeproj \
             -scheme OpenClaw \

@@ -58,6 +58,7 @@ jobs:
       - name: Build archive
         working-directory: HermesAgent
         run: |
+          mkdir -p $GITHUB_WORKSPACE/build
           xcodebuild archive \
             -project HermesAgent.xcodeproj \
             -scheme HermesAgent \
