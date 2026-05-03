@@ -106,11 +106,7 @@ struct ChatView: View {
             } label: {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.system(size: 32))
-                    .foregroundStyle(
-                        messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        ? AnyShapeStyle(Color.gray)
-                        : AnyShapeStyle(LinearGradient(colors: [.orange, .red], startPoint: .top, endPoint: .bottom))
-                    )
+                    .foregroundStyle(sendButtonStyle)
             }
             .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
@@ -132,6 +128,14 @@ struct ChatView: View {
         guard !text.isEmpty else { return }
         messageText = ""
         chatVM.sendMessage(text, via: gateway)
+    }
+
+    private var sendButtonStyle: AnyShapeStyle {
+        if messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return AnyShapeStyle(Color.gray)
+        } else {
+            return AnyShapeStyle(LinearGradient(colors: [.orange, .red], startPoint: .top, endPoint: .bottom))
+        }
     }
 }
 
