@@ -1,0 +1,144 @@
+name: Build OpenClaw iOS IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      signing_mode:
+        description: 'Signing mode'
+        required: false
+        default: 'unsigned'
+        type: choice
+        options:
+          - unsigned
+          - signed
+  push:
+    branches: [main]
+    paths:
+      - 'OpenClaw/**'
+      - '.github/workflows/build-openclaw.yml'
+
+concurrency:
+  group: openclaw-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  XCODE_VERSION: '16.2'
+
+jobs:
+  build-openclaw-ios:
+    name: Build OpenClaw iOS
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Select Xcode version
+        run: |
+          sudo xcode-select -s "/Applications/Xcode_${{ env.XCODE_VERSION }}.app/Contents/Developer"
+          xcodebuild -version
+          swift --version
+
+      - name: Install XcodeGen
+        run: |
+          brew install xcodegen
+          xcodegen --version
+
+      - name: Generate Xcode project
+        working-directory: OpenClaw
+        run: |
+          xcodegen generate
+          echo "✅ Xcode project generated"
+          ls -la *.xcodeproj
+
+      - name: Build archive
+        working-directory: OpenClaw
+        run: |
+          xcodebuild archive \
+            -project OpenClaw.xcodeproj \
+            -scheme OpenClaw \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$GITHUB_WORKSPACE/build/OpenClaw.xcarchive" \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            ENABLE_BITCODE=NO \
+            | tee $GITHUB_WORKSPACE/build/xcodebuild.log
+
+          echo "✅ Archive completed"
+
+      - name: Setup signing (if signed mode)
+        if: ${{ github.event.inputs.signing_mode == 'signed' }}
+        env:
+          P12_CERTIFICATE_BASE64: ${{ secrets.P12_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          PROVISIONING_PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD || 'temporary-password' }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+          echo -n "$P12_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+          security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+          PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
+          echo -n "$PROVISIONING_PROFILE_BASE64" | base64 --decode -o $PP_PATH
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/
+
+      - name: Create IPA
+        run: |
+          mkdir -p build/Payload
+          APP_PATH=$(find build/OpenClaw.xcarchive/Products/Applications -name "*.app" -maxdepth 1 | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "❌ Could not find .app in archive"
+            find build/OpenClaw.xcarchive -name "*.app" -type d
+            exit 1
+          fi
+          echo "Found app at: $APP_PATH"
+          cp -r "$APP_PATH" build/Payload/
+          cd build
+          zip -r -9 "OpenClaw.ipa" Payload/
+          IPA_SIZE=$(du -sh OpenClaw.ipa | cut -f1)
+          echo "✅ IPA created: OpenClaw.ipa ($IPA_SIZE)"
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenClaw-iOS-${{ github.run_number }}
+          path: build/OpenClaw.ipa
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openclaw-build-log-${{ github.run_number }}
+          path: build/xcodebuild.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Create Release (on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/OpenClaw.ipa
+          generate_release_notes: true
+
+      - name: Cleanup
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/app-signing.keychain-db" ]; then
+            security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
+          fi
+          echo "🧹 Cleanup done"
