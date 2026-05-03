@@ -152,9 +152,13 @@ struct MessageBubble: View {
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .background(
-                        message.isUser
-                        ? AnyShapeStyle(LinearGradient(colors: [.orange, .red.opacity(0.9)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                        : AnyShapeStyle(Color.white.opacity(0.1))
+                        Group {
+                            if message.isUser {
+                                LinearGradient(colors: [.orange, .red.opacity(0.9)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                            } else {
+                                Color.white.opacity(0.1)
+                            }
+                        }
                     )
                     .cornerRadius(18)
 

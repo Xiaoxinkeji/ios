@@ -368,12 +368,16 @@ struct HermesMessageBubble: View {
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .background(
-                        message.isUser
-                        ? AnyShapeStyle(LinearGradient(
-                            colors: [Color(red: 0.55, green: 0.35, blue: 1.0), Color(red: 0.4, green: 0.2, blue: 0.85)],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        ))
-                        : AnyShapeStyle(Color.white.opacity(0.08))
+                        Group {
+                            if message.isUser {
+                                LinearGradient(
+                                    colors: [Color(red: 0.55, green: 0.35, blue: 1.0), Color(red: 0.4, green: 0.2, blue: 0.85)],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing
+                                )
+                            } else {
+                                Color.white.opacity(0.08)
+                            }
+                        }
                     )
                     .cornerRadius(18)
 

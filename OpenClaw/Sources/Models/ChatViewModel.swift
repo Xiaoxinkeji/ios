@@ -76,7 +76,8 @@ class ChatViewModel: ObservableObject {
         switch msgType {
         case "message", "response", "agent.response":
             isTyping = false
-            if let content = json["content"] as? String ?? json["text"] as? String {
+            let contentStr = (json["content"] as? String) ?? (json["text"] as? String)
+            if let content = contentStr {
                 let msg = ChatMessage(content: content, isUser: false)
                 messages.append(msg)
             }

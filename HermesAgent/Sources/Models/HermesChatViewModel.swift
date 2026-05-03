@@ -76,7 +76,8 @@ class HermesChatViewModel: ObservableObject {
         switch msgType {
         case "response", "agent_response", "message":
             isTyping = false
-            if let content = json["content"] as? String ?? json["text"] as? String {
+            let contentStr = (json["content"] as? String) ?? (json["text"] as? String)
+            if let content = contentStr {
                 messages.append(HermesMessage(content: content, isUser: false))
             }
 
@@ -87,14 +88,16 @@ class HermesChatViewModel: ObservableObject {
             messages.append(HermesMessage(id: streamId, content: "", isUser: false, isStreaming: true))
 
         case "stream_chunk", "stream":
-            if let chunk = json["content"] as? String ?? json["chunk"] as? String,
+            let chunkStr = (json["content"] as? String) ?? (json["chunk"] as? String)
+            if let chunk = chunkStr,
                let streamId = currentStreamId,
                let idx = messages.firstIndex(where: { $0.id == streamId }) {
+                let oldMsg = messages[idx]
                 messages[idx] = HermesMessage(
                     id: streamId,
-                    content: messages[idx].content + chunk,
+                    content: oldMsg.content + chunk,
                     isUser: false,
-                    timestamp: messages[idx].timestamp,
+                    timestamp: oldMsg.timestamp,
                     isStreaming: true
                 )
             }
