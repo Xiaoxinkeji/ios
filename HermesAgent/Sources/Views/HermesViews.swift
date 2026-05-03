@@ -339,11 +339,11 @@ struct HermesChatView: View {
                     .font(.system(size: 32))
                     .foregroundStyle(
                         messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        ? Color.gray
-                        : LinearGradient(
+                        ? AnyShapeStyle(Color.gray)
+                        : AnyShapeStyle(LinearGradient(
                             colors: [Color(red: 0.6, green: 0.45, blue: 1.0), Color(red: 0.4, green: 0.2, blue: 0.85)],
                             startPoint: .top, endPoint: .bottom
-                        )
+                        ))
                     )
             }
             .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)

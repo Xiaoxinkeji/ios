@@ -108,8 +108,8 @@ struct ChatView: View {
                     .font(.system(size: 32))
                     .foregroundStyle(
                         messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        ? Color.gray
-                        : LinearGradient(colors: [.orange, .red], startPoint: .top, endPoint: .bottom)
+                        ? AnyShapeStyle(Color.gray)
+                        : AnyShapeStyle(LinearGradient(colors: [.orange, .red], startPoint: .top, endPoint: .bottom))
                     )
             }
             .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
